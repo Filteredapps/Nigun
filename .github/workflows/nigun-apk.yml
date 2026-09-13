@@ -1,0 +1,74 @@
+name: Nigun APK
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nigun-apk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: source
+    env:
+      METROLIST_APP_NAME: Nigun
+      METROLIST_APPLICATION_ID: com.nigun.music
+      METROLIST_DEBUG_KEYSTORE_PATH: ci-debug.keystore
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: nigun
+      - name: Checkout pinned Metrolist source
+        uses: actions/checkout@v6
+        with:
+          repository: MetrolistGroup/Metrolist
+          ref: 18becf2eb8d7b5ae9d88bea114d672cb5f978626
+          path: source
+          submodules: recursive
+      - name: Apply and verify Nigun source
+        run: python3 ../nigun/apply-overlay.py .
+      - name: Package complete source
+        run: tar --exclude=.git -czf ../Nigun-1.0-source.tar.gz .
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Nigun-1.0-complete-source
+          path: Nigun-1.0-source.tar.gz
+          if-no-files-found: error
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+      - name: Prepare test signing key
+        run: keytool -genkeypair -keystore app/ci-debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Nigun Test,O=Nigun,C=IL"
+      - name: Build test APK
+        env:
+          METROLIST_APPLICATION_ID: com.nigun.music.test
+          METROLIST_APP_NAME: Nigun Test
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleFossDebug --console=plain
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Nigun-1.0-test-APK
+          path: source/app/build/outputs/apk/foss/debug/*.apk
+          if-no-files-found: error
+      - name: Build release APK
+        if: github.event_name != 'pull_request'
+        run: ./gradlew :app:assembleFossRelease --console=plain
+      - uses: actions/upload-artifact@v6
+        if: github.event_name != 'pull_request'
+        with:
+          name: Nigun-1.0-unsigned-release
+          path: source/app/build/outputs/apk/foss/release/*.apk
+          if-no-files-found: error
