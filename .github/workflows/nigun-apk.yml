@@ -49,8 +49,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Install Android SDK
         run: |
-          sdkmanager --list --channel=3
-          sdkmanager --channel=3 "platforms;android-37" "build-tools;36.0.0"
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
       - name: Prepare test signing key
         run: keytool -genkeypair -keystore app/ci-debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Nigun Test,O=Nigun,C=IL"
       - name: Build test APK
