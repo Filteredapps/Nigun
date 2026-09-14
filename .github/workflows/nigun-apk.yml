@@ -73,3 +73,77 @@ jobs:
           name: Nigun-1.0-unsigned-release
           path: source/app/build/outputs/apk/foss/release/*.apk
           if-no-files-found: error
+
+  sign_release:
+    name: Sign and verify release APK
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release-signing
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Download this run's unsigned release
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: Nigun-1.0-unsigned-release
+          path: unsigned-apk
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Android signing tools
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - name: Install pinned Build Tools
+        run: sdkmanager "build-tools;37.0.0"
+      - name: Validate and align unsigned APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t task_apks < <(find unsigned-apk -type f -name '*.apk')
+          if [ "${#task_apks[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one unsigned release APK."
+            exit 1
+          fi
+          mkdir -p aligned-apk signed-apk
+          "$ANDROID_HOME/build-tools/37.0.0/zipalign" -f -P 16 4 "${task_apks[0]}" aligned-apk/Nigun.apk
+      - name: Sign APK with protected release key
+        shell: bash
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.KEYSTORE }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RELEASE_KEYSTORE" ] || [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_ALIAS" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
+            echo "::error::Configure KEYSTORE, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD in the release-signing environment."
+            exit 1
+          fi
+          umask 077
+          task_signing_dir=$(mktemp -d)
+          trap 'rm -f "$task_signing_dir/nigun-release.jks"; rmdir "$task_signing_dir"' EXIT
+          printf '%s' "$RELEASE_KEYSTORE" | base64 --decode > "$task_signing_dir/nigun-release.jks"
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" sign \
+            --ks "$task_signing_dir/nigun-release.jks" \
+            --ks-key-alias "$RELEASE_KEY_ALIAS" \
+            --ks-pass env:RELEASE_STORE_PASSWORD \
+            --key-pass env:RELEASE_KEY_PASSWORD \
+            --v4-signing-enabled false \
+            --out signed-apk/Nigun-1.0.apk \
+            aligned-apk/Nigun.apk
+      - name: Verify signature and alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs signed-apk/Nigun-1.0.apk
+          "$ANDROID_HOME/build-tools/37.0.0/zipalign" -c -P 16 4 signed-apk/Nigun-1.0.apk
+      - name: Upload verified signed APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Nigun-1.0-signed-APK
+          path: signed-apk/Nigun-1.0.apk
+          if-no-files-found: error
