@@ -37,3 +37,22 @@ with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
     for target in deletions:
         target.unlink(missing_ok=True)
 print('Applied and verified', len(writes), 'Nigun source files')
+
+# Readable changes are applied only after the pinned archive and base commit are verified.
+override_root = Path(__file__).resolve().parent / "overrides"
+overrides = []
+if override_root.is_dir():
+    for entry in sorted(override_root.rglob("*")):
+        if entry.is_symlink():
+            raise SystemExit("Symlinks are not supported in source overrides")
+        if not entry.is_file():
+            continue
+        relative = entry.relative_to(override_root)
+        target = (source / relative).resolve()
+        if not target.is_relative_to(source) or ".git" in relative.parts:
+            raise SystemExit("Unsafe source override path")
+        overrides.append((target, entry.read_bytes()))
+    for target, content in overrides:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+print("Applied", len(overrides), "reviewable source overrides")
