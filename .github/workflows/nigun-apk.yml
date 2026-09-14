@@ -58,12 +58,19 @@ jobs:
           METROLIST_APP_NAME: Nigun Test
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleFossDebug --console=plain
+          ./gradlew :innertube:testDebugUnitTest :app:assembleFossDebug --console=plain
       - uses: actions/upload-artifact@v6
         with:
           name: Nigun-1.0-test-APK
           path: source/app/build/outputs/apk/foss/debug/*.apk
           if-no-files-found: error
+      - name: Upload regression test reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Nigun-regression-tests
+          path: source/innertube/build/reports/tests/
+          if-no-files-found: warn
       - name: Build release APK
         if: github.event_name != 'pull_request'
         run: ./gradlew :app:assembleFossRelease --console=plain
