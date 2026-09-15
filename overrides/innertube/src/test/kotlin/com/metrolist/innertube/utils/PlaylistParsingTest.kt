@@ -1,6 +1,7 @@
 package com.metrolist.innertube.utils
 
 import com.metrolist.innertube.models.response.BrowseResponse
+import com.metrolist.innertube.models.filterVideoSongs
 import com.metrolist.innertube.pages.PlaylistPage
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -44,5 +45,22 @@ class PlaylistParsingTest {
     @Test fun browseIdsAreNormalizedOnlyOnce() {
         assertEquals("PLabc", PlaylistPage.normalizeId("VLPLabc"))
         assertEquals("PLabc", PlaylistPage.normalizeId("PLabc"))
+    }
+
+    // Track rows captured from a public mixed playlist on 2026-09-15.
+    @Test fun realPlaylistRowsKeepApprovedAudioAndRejectOtherArtistsAndVideos() {
+        val allowedIds = listOf("UCw1oCoEMF_o65tpDHItwwUQ", "UCEg5tmfi6WmJZRnezYLVHSg")
+        YouTubeArtistSearchFilter.replaceAllowedArtists(allowedIds.map { AllowedArtist(it, it) })
+        YouTubeBlockedSongFilter.replaceBlockedSongIds(emptyList())
+        try {
+            val result = page("playlist-real-mixed.json").songs.filterAllowedArtists().filterVideoSongs(true)
+            assertEquals(listOf("4Di8dv8wPwQ", "JfJufy7dpO0", "w-Vywfv3U_M", "2MtGkvRaWlw"), result.map { it.id })
+            YouTubeBlockedSongFilter.replaceBlockedSongIds(listOf(result.first().id))
+            val blocked = page("playlist-real-mixed.json").songs.filterAllowedArtists().filterVideoSongs(true)
+            assertEquals(result.drop(1).map { it.id }, blocked.map { it.id })
+        } finally {
+            YouTubeArtistSearchFilter.restoreBundledAllowedArtists()
+            YouTubeBlockedSongFilter.replaceBlockedSongIds(emptyList())
+        }
     }
 }
