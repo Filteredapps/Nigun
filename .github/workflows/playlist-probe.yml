@@ -1,0 +1,14 @@
+name: Inspect public artist playlists
+on:
+  push:
+    branches: [fix/playlist-probe]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+      - run: pip install ytmusicapi
+      - run: python scripts/playlist-probe.py
