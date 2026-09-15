@@ -1,0 +1,18 @@
+name: Inspect public playlist responses
+on:
+  push:
+    branches: [fix/subscribers-and-playlists]
+    paths: [.github/workflows/inspect-playlists.yml, scripts/inspect-playlists.py]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install ytmusicapi
+      - run: python scripts/inspect-playlists.py
