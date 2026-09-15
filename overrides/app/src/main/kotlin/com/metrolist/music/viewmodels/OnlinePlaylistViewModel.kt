@@ -13,6 +13,7 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.filterVideoSongs
+import com.metrolist.innertube.utils.PlaylistSongPager
 import com.metrolist.innertube.utils.YouTubeArtistSearchFilter
 import com.metrolist.innertube.utils.filterAllowedArtists
 import com.metrolist.music.constants.HideVideoSongsKey
@@ -75,7 +76,7 @@ class OnlinePlaylistViewModel @Inject constructor(
     private var proactiveLoadJob: Job? = null
     private var initialLoadJob: Job? = null
     val hasMore = MutableStateFlow(false)
-    private val seenContinuations = mutableSetOf<String>()
+    private var songPager: PlaylistSongPager? = null
 
     init {
         fetchInitialPlaylistData()
@@ -90,10 +91,12 @@ class OnlinePlaylistViewModel @Inject constructor(
             _error.value = null
             continuation = null
             hasMore.value = false
-            seenContinuations.clear()
+            songPager = null
             try {
-                withTimeout(30_000L) {
-                    if (isPodcastPlaylist) fetchPodcastPlaylist() else fetchRegularPlaylist()
+                if (isPodcastPlaylist) {
+                    withTimeout(30_000L) { fetchPodcastPlaylist() }
+                } else {
+                    fetchRegularPlaylist()
                 }
                 if (continuation != null) startProactiveBackgroundLoading()
             } catch (e: TimeoutCancellationException) {
@@ -166,34 +169,25 @@ class OnlinePlaylistViewModel @Inject constructor(
     }
 
     private suspend fun fetchRegularPlaylist() {
-        val page = YouTube.playlist(playlistId).getOrThrow()
-        val songs = applySongFilters(page.songs)
+        val page = withTimeout(30_000L) { YouTube.playlist(playlistId).getOrThrow() }
+        val pager = PlaylistSongPager(
+            filter = ::applySongFilters,
+            fetchNext = { token ->
+                withTimeout(30_000L) { YouTube.playlistContinuation(token).getOrThrow() }
+            },
+        )
+        pager.start(page.songs, page.songsContinuation)
         coroutineContext.ensureActive()
+        songPager = pager
         playlist.value = page.playlist
-        playlistSongs.value = songs
-        continuation = page.songsContinuation
-        hasMore.value = continuation != null
-        // An empty first page does not establish that the entire playlist is blocked.
-        if (songs.isEmpty()) loadNextPages(3)
+        publishSongs(pager)
     }
 
-    private suspend fun loadNextPages(limit: Int) {
-        repeat(limit) {
-            val token = continuation ?: return
-            if (token in seenContinuations) {
-                continuation = null
-                hasMore.value = false
-                return
-            }
-            val page = YouTube.playlistContinuation(token).getOrThrow()
-            val allowed = applySongFilters(page.songs)
-            coroutineContext.ensureActive()
-            seenContinuations.add(token)
-            playlistSongs.value = (playlistSongs.value + allowed).distinctBy { it.id }
-            continuation = page.continuation?.takeUnless { it in seenContinuations }
-            hasMore.value = continuation != null
-            if (allowed.isNotEmpty()) return
-        }
+    private fun publishSongs(pager: PlaylistSongPager) {
+        if (songPager !== pager) return
+        playlistSongs.value = pager.songs
+        continuation = pager.continuation
+        hasMore.value = continuation != null
     }
 
     private suspend fun loadLocalSavedEpisodes() {
@@ -242,10 +236,15 @@ class OnlinePlaylistViewModel @Inject constructor(
 
     private fun startProactiveBackgroundLoading() {
         if (proactiveLoadJob?.isActive == true || continuation == null) return
+        val pager = songPager ?: return
         proactiveLoadJob = viewModelScope.launch(Dispatchers.IO) {
             _isLoadingMore.value = true
             try {
-                withTimeout(30_000L) { loadNextPages(5) }
+                while (isActive && pager.continuation != null) {
+                    pager.loadNext()
+                    coroutineContext.ensureActive()
+                    publishSongs(pager)
+                }
                 _error.value = null
             } catch (e: TimeoutCancellationException) {
                 _error.value = context.getString(R.string.nigun_loading_failed)
@@ -265,11 +264,15 @@ class OnlinePlaylistViewModel @Inject constructor(
         startProactiveBackgroundLoading()
     }
 
-    fun retry() { fetchInitialPlaylistData() }
+    fun retry() {
+        if (playlist.value != null && continuation != null) loadMoreSongs() else fetchInitialPlaylistData()
+    }
 
     private suspend fun applySongFilters(songs: List<SongItem>): List<SongItem> {
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
-        return YouTube.resolveArtistIds(songs)
+        val unresolved = songs.filterNot { YouTubeArtistSearchFilter.isAllowed(it) }
+        val resolved = YouTube.resolveArtistIds(unresolved).associateBy { it.id }
+        return songs.map { resolved[it.id] ?: it }
             .distinctBy { it.id }
             .filterAllowedArtists()
             .filterVideoSongs(hideVideoSongs)

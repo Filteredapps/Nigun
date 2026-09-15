@@ -811,19 +811,13 @@ object YouTube {
                 innerTube
                     .browse(
                         client = WEB_REMIX,
-                        browseId = "VL$playlistId",
+                        browseId = "VL" + PlaylistPage.normalizeId(playlistId),
                         setLogin = true,
                     ).body<BrowseResponse>()
-            val base =
-                response.contents
-                    ?.twoColumnBrowseResultsRenderer
-                    ?.tabs
-                    ?.firstOrNull()
-                    ?.tabRenderer
-                    ?.content
-                    ?.sectionListRenderer
-                    ?.contents
-                    ?.firstOrNull()
+            val tracks = PlaylistPage.songPage(response)
+            val base = PlaylistPage.sections(response).firstOrNull {
+                it.musicResponsiveHeaderRenderer != null || it.musicEditablePlaylistDetailHeaderRenderer != null
+            }
             val header =
                 base?.musicResponsiveHeaderRenderer
                     ?: base?.musicEditablePlaylistDetailHeaderRenderer?.header?.musicResponsiveHeaderRenderer
@@ -885,7 +879,7 @@ object YouTube {
             PlaylistPage(
                 playlist =
                     PlaylistItem(
-                        id = playlistId,
+                        id = PlaylistPage.normalizeId(playlistId),
                         title =
                             header?.title?.runs?.firstOrNull()?.text
                                 ?: response.header?.musicHeaderRenderer?.title?.runs?.firstOrNull()?.text
@@ -937,69 +931,8 @@ object YouTube {
                         description = description,
                         authorAvatarUrl = authorAvatarUrl,
                     ),
-                songs = run {
-                    val twoColShelf =
-                        response.contents
-                            ?.twoColumnBrowseResultsRenderer
-                            ?.secondaryContents
-                            ?.sectionListRenderer
-                            ?.contents
-                            ?.firstOrNull()
-                    val twoColContents =
-                        twoColShelf?.musicPlaylistShelfRenderer?.contents
-                            ?: twoColShelf?.musicShelfRenderer?.contents
-                    val singleColShelf =
-                        response.contents
-                            ?.singleColumnBrowseResultsRenderer
-                            ?.tabs
-                            ?.firstOrNull()
-                            ?.tabRenderer
-                            ?.content
-                            ?.sectionListRenderer
-                            ?.contents
-                            ?.firstOrNull()
-                    val singleColContents =
-                        singleColShelf?.musicPlaylistShelfRenderer?.contents
-                            ?: singleColShelf?.musicShelfRenderer?.contents
-                    (twoColContents ?: singleColContents)
-                        ?.getItems()
-                        ?.mapNotNull { PlaylistPage.fromMusicResponsiveListItemRenderer(it) }
-                        ?: emptyList()
-                },
-                songsContinuation = run {
-                    val twoColShelf =
-                        response.contents
-                            ?.twoColumnBrowseResultsRenderer
-                            ?.secondaryContents
-                            ?.sectionListRenderer
-                            ?.contents
-                            ?.firstOrNull()
-                    val twoColContents =
-                        twoColShelf?.musicPlaylistShelfRenderer?.contents
-                            ?: twoColShelf?.musicShelfRenderer?.contents
-                    val twoColContinuations =
-                        twoColShelf?.musicPlaylistShelfRenderer?.continuations
-                            ?: twoColShelf?.musicShelfRenderer?.continuations
-                    val singleColShelf =
-                        response.contents
-                            ?.singleColumnBrowseResultsRenderer
-                            ?.tabs
-                            ?.firstOrNull()
-                            ?.tabRenderer
-                            ?.content
-                            ?.sectionListRenderer
-                            ?.contents
-                            ?.firstOrNull()
-                    val singleColContents =
-                        singleColShelf?.musicPlaylistShelfRenderer?.contents
-                            ?: singleColShelf?.musicShelfRenderer?.contents
-                    val singleColContinuations =
-                        singleColShelf?.musicPlaylistShelfRenderer?.continuations
-                            ?: singleColShelf?.musicShelfRenderer?.continuations
-                    val mergedContents = twoColContents ?: singleColContents
-                    val mergedContinuations = twoColContinuations ?: singleColContinuations
-                    mergedContents?.getContinuation() ?: mergedContinuations?.getContinuation()
-                },
+                songs = tracks.songs,
+                songsContinuation = tracks.continuation,
                 continuation =
                     response.contents
                         ?.twoColumnBrowseResultsRenderer
@@ -1020,64 +953,7 @@ object YouTube {
                         setLogin = true,
                     ).body<BrowseResponse>()
 
-            val mainContents: List<MusicShelfRenderer.Content> =
-                response.continuationContents
-                    ?.sectionListContinuation
-                    ?.contents
-                    ?.mapNotNull { content: SectionListRenderer.Content ->
-                        content.musicPlaylistShelfRenderer?.contents
-                            ?: content.musicShelfRenderer?.contents
-                    }
-                    ?.flatten()
-                    ?: emptyList()
-
-            val shelfContents: List<MusicShelfRenderer.Content> =
-                response.continuationContents?.musicPlaylistShelfContinuation?.contents ?: emptyList()
-
-            val musicShelfContinuationContents: List<MusicShelfRenderer.Content> =
-                response.continuationContents?.musicShelfContinuation?.contents ?: emptyList()
-
-            val appendedContents: List<MusicShelfRenderer.Content> =
-                response.onResponseReceivedActions
-                    ?.firstOrNull()
-                    ?.appendContinuationItemsAction
-                    ?.continuationItems
-                    .orEmpty()
-
-            val allContents = mainContents + shelfContents + musicShelfContinuationContents + appendedContents
-
-            val songs =
-                allContents
-                    .mapNotNull { content: MusicShelfRenderer.Content -> content.musicResponsiveListItemRenderer }
-                    .mapNotNull { renderer -> PlaylistPage.fromMusicResponsiveListItemRenderer(renderer) }
-
-            val nextContinuation =
-                if (songs.isEmpty()) {
-                    null
-                } else {
-                    response.continuationContents
-                        ?.sectionListContinuation
-                        ?.continuations
-                        ?.getContinuation()
-                        ?: response.continuationContents
-                            ?.musicPlaylistShelfContinuation
-                            ?.continuations
-                            ?.getContinuation()
-                        ?: response.continuationContents
-                            ?.musicShelfContinuation
-                            ?.continuations
-                            ?.getContinuation()
-                        ?: response.onResponseReceivedActions
-                            ?.firstOrNull()
-                            ?.appendContinuationItemsAction
-                            ?.continuationItems
-                            ?.getContinuation()
-                }
-
-            PlaylistContinuationPage(
-                songs = songs,
-                continuation = nextContinuation,
-            )
+            PlaylistPage.songPage(response)
         }
 
     suspend fun podcast(podcastId: String): Result<PodcastPage> = podcastWithDebug(podcastId) { }

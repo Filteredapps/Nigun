@@ -214,42 +214,6 @@ private suspend fun List<ArtistSection>.expandedHomeItems(sourceArtist: ArtistIt
 private fun List<YTItem>.sourceOrderedForHome(): List<YTItem> =
     distinctBy { it.id }
 
-private fun String?.parseMonthlyListenerCount(): Long? {
-    val text = this
-        ?.replace(",", "")
-        ?.trim()
-        ?: return null
-    if (text.isBlank()) return null
-
-    val compactMatch = Regex("""([0-9]+(?:\.[0-9]+)?)\s*([KkMmBb])""").find(text)
-    if (compactMatch != null) {
-        val value = compactMatch.groupValues[1].toDoubleOrNull() ?: return null
-        val multiplier = when (compactMatch.groupValues[2].lowercase()) {
-            "k" -> 1_000.0
-            "m" -> 1_000_000.0
-            "b" -> 1_000_000_000.0
-            else -> 1.0
-        }
-        return (value * multiplier).toLong()
-    }
-
-    val number = Regex("""\d+""")
-        .findAll(text)
-        .joinToString(separator = "") { it.value }
-        .toLongOrNull()
-        ?: return null
-
-    val normalized = text.lowercase()
-    val multiplier = when {
-        "million" in normalized || "מיליון" in normalized -> 1_000_000L
-        "billion" in normalized || "מיליארד" in normalized -> 1_000_000_000L
-        "thousand" in normalized || "אלף" in normalized -> 1_000L
-        else -> 1L
-    }
-    return number * multiplier
-}
-
-
 private fun RemoteHomeFeedItem.toYTItem(): YTItem? {
     val displayArtistName = YouTubeArtistSearchFilter.preferredArtistName(artistChannelId, artistName)
     val artist = Artist(name = displayArtistName, id = artistChannelId)

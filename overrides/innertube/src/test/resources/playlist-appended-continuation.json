@@ -1,0 +1,76 @@
+{
+  "responseContext": {},
+  "onResponseReceivedActions": [
+    {},
+    {
+      "appendContinuationItemsAction": {
+        "continuationItems": [
+          {
+            "musicResponsiveListItemRenderer": {
+              "navigationEndpoint": {
+                "watchEndpoint": {
+                  "videoId": "abcdefghijk"
+                }
+              },
+              "flexColumns": [
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Mixed song"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Song"
+                        },
+                        {
+                          "text": " • "
+                        },
+                        {
+                          "text": "Other",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "UCbbbbbbbbbbbbbbbbbbbbbb"
+                            }
+                          }
+                        },
+                        {
+                          "text": " & "
+                        },
+                        {
+                          "text": "Allowed",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "UCaaaaaaaaaaaaaaaaaaaaaa"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "continuationItemRenderer": {
+              "continuationEndpoint": {
+                "continuationCommand": {
+                  "token": "more"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

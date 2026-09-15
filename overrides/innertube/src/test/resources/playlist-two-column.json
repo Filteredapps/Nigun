@@ -1,0 +1,121 @@
+{
+  "responseContext": {},
+  "contents": {
+    "twoColumnBrowseResultsRenderer": {
+      "secondaryContents": {
+        "sectionListRenderer": {
+          "contents": [
+            {},
+            {
+              "musicPlaylistShelfRenderer": {
+                "contents": [
+                  {
+                    "musicResponsiveListItemRenderer": {
+                      "navigationEndpoint": {
+                        "watchEndpoint": {
+                          "videoId": "abcdefghijk"
+                        }
+                      },
+                      "flexColumns": [
+                        {
+                          "musicResponsiveListItemFlexColumnRenderer": {
+                            "text": {
+                              "runs": [
+                                {
+                                  "text": "Mixed song"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "musicResponsiveListItemFlexColumnRenderer": {
+                            "text": {
+                              "runs": [
+                                {
+                                  "text": "Song"
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "Other",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "UCbbbbbbbbbbbbbbbbbbbbbb"
+                                    }
+                                  }
+                                },
+                                {
+                                  "text": " & "
+                                },
+                                {
+                                  "text": "Allowed",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "UCaaaaaaaaaaaaaaaaaaaaaa"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "musicResponsiveListItemRenderer": {
+                      "playlistItemData": {
+                        "videoId": "second12345",
+                        "playlistSetVideoId": "editable-key"
+                      },
+                      "flexColumns": [
+                        {
+                          "musicResponsiveListItemFlexColumnRenderer": {
+                            "text": {
+                              "runs": [
+                                {
+                                  "text": "Second"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "musicResponsiveListItemFlexColumnRenderer": {
+                            "text": {
+                              "runs": [
+                                {
+                                  "text": "Allowed",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "UCaaaaaaaaaaaaaaaaaaaaaa"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "continuationItemRenderer": {
+                      "continuationEndpoint": {
+                        "continuationCommand": {
+                          "token": "page2"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
