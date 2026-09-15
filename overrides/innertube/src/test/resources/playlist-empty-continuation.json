@@ -1,0 +1,21 @@
+{
+  "responseContext": {},
+  "continuationContents": {
+    "musicPlaylistShelfContinuation": {
+      "contents": [
+        {
+          "musicResponsiveListItemRenderer": {
+            "flexColumns": []
+          }
+        }
+      ],
+      "continuations": [
+        {
+          "nextContinuationData": {
+            "continuation": "later"
+          }
+        }
+      ]
+    }
+  }
+}
